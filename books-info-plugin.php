@@ -14,7 +14,6 @@ add_action('plugins_loaded', array(PSR4_WordPress_Plugin::get_instance(), 'plugi
 register_activation_hook( __FILE__ , array('PSR4_WordPress_Plugin', 'activate' ) );
 register_deactivation_hook( __FILE__ , array('PSR4_WordPress_Plugin', 'deactivate' ) );
 register_uninstall_hook(__FILE__,  array('PSR4_WordPress_Plugin', 'uninstall' ) );
-
 class PSR4_WordPress_Plugin
 {
     /**
@@ -60,8 +59,9 @@ class PSR4_WordPress_Plugin
     {
         $this->plugin_url = plugins_url('/', __FILE__);
         $this->plugin_path = plugin_dir_path(__FILE__);
-        $this->load_language('psr4-wordpress-plugin');
+        $this->load_language('books-info');
         spl_autoload_register(array($this, 'autoload'));
+        Actions\Post::hook_into_wordpress();
     }
      
     /**
@@ -72,10 +72,12 @@ class PSR4_WordPress_Plugin
     public function __construct() {}
 
     public static function activate() {
+        flush_rewrite_rules();
         require_once plugin_dir_path(__FILE__).'includes/Actions/Post.php';
         Actions\Post::create_table();
     }
     public static function deactivate() {
+        flush_rewrite_rules();
     }
     public static function uninstall() {
         require_once plugin_dir_path(__FILE__).'includes/Actions/Post.php';
