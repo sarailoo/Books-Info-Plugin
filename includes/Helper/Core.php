@@ -15,4 +15,5 @@ class Core
         <input type="text" id="isbn_input" name="isbn_input" class="postbox" value="<?php echo $value; ?>">
         <?php
     }
+
 }

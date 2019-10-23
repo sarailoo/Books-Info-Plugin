@@ -3,18 +3,12 @@
 namespace Actions;
 
 use Helper\Core;
-
+use WP_List_Table;
+if( ! class_exists( 'WP_List_Table' ) ) {
+    require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
+}
 class Post
 {
-    /**
-     * Add Emoji To Contents
-     */
-    public static function addEmojiToContents()
-    {
-        add_filter('the_content', function ($title) {
-            return $title . PHP_EOL . Core::getRandomEmoji();
-        }, 10, 2);
-    }
     public static function create_table(){
         $sql ="CREATE TABLE IF NOT EXISTS books_info (
         `id` INT NOT NULL AUTO_INCREMENT , 
@@ -33,7 +27,8 @@ class Post
         add_action( 'init', ['Actions\Post', 'create_taxonomy'] );
         add_action( 'init', ['Actions\Post', 'create_posttype'] ); 
         add_action( 'add_meta_boxes', array( 'Actions\Post', 'create_metabox' ) ); 
-        add_action( 'save_post_book', array( 'Actions\Post', 'save_metabox' ) ); 
+        add_action( 'save_post_book', array( 'Actions\Post', 'save_metabox' ) );
+        add_action( 'admin_menu', array( 'Actions\Post', 'add_admin_menu' ) );      
     }
     public static function create_posttype(){
         register_post_type('book', array(
@@ -145,5 +140,141 @@ class Post
             $where = array( 'post_id' => $post_id );
             $wpdb->update($table,$data,$where);
         }
+    }
+
+    public static function add_admin_menu(){
+        
+        add_menu_page(esc_html__('Books Info','books-info'),esc_html__('Books Info','books-info'),'read','book_info_main',array('Actions\Post','book_info_main_page'));
+    }
+    public static function book_info_main_page()
+    {
+        
+        $exampleListTable = new List_Table();
+        $exampleListTable->prepare_items();
+        ?>
+            <div class="wrap">
+                <div id="icon-users" class="icon32"></div>
+                <h2> <?php _e('Books List Table Page','books-info'); ?></h2>
+                <?php $exampleListTable->display(); ?>
+            </div>
+        <?php
+    }
+}
+
+class List_Table extends WP_List_Table
+{
+      /**
+     * Prepare the items for the table to process
+     *
+     * @return Void
+     */
+    public function prepare_items()
+    {
+        $columns = $this->get_columns();
+        $hidden = $this->get_hidden_columns();
+        $sortable = $this->get_sortable_columns();
+        $data = $this->table_data();
+        usort( $data, array( &$this, 'sort_data' ) );
+        $perPage = 10;
+        $currentPage = $this->get_pagenum();
+        $totalItems = count($data);
+        $this->set_pagination_args( array(
+            'total_items' => $totalItems,
+            'per_page'    => $perPage
+        ) );
+        $data = array_slice($data,(($currentPage-1)*$perPage),$perPage);
+        $this->_column_headers = array($columns, $hidden, $sortable);
+        $this->items = $data;
+    }
+    /**
+     * Override the parent columns method. Defines the columns to use in your listing table
+     *
+     * @return Array
+     */
+    public function get_columns()
+    {
+        $columns = array(
+            'id'          => __('ID','books-info'),
+            'post_id'       => __('Post ID','books-info'),
+            'isbn' => __('ISBN','books-info')
+        );
+        return $columns;
+    }
+    /**
+     * Define which columns are hidden
+     *
+     * @return Array
+     */
+    public function get_hidden_columns()
+    {
+        return array();
+    }
+    /**
+     * Define the sortable columns
+     *
+     * @return Array
+     */
+    public function get_sortable_columns()
+    {
+        return array('id' => array('id', false),
+            'post_id' => array('post_id', false),
+            'isbn' => array('isbn', false));
+    }
+    /**
+     * Get the table data
+     *
+     * @return Array
+     */
+    private function table_data()
+    {
+        global $wpdb;
+        $data = $wpdb->get_results("SELECT * FROM books_info",'ARRAY_A');
+        return $data;
+    }
+    /**
+     * Define what data to show on each column of the table
+     *
+     * @param  Array $item        Data
+     * @param  String $column_name - Current column name
+     *
+     * @return Mixed
+     */
+    public function column_default( $item, $column_name )
+    {
+        switch( $column_name ) {
+            case 'id':
+            case 'post_id':
+            case 'isbn':
+                return $item[ $column_name ];
+            default:
+                return print_r( $item, true ) ;
+        }
+    }
+    /**
+     * Allows you to sort the data by the variables set in the $_GET
+     *
+     * @return Mixed
+     */
+    private function sort_data( $a, $b )
+    {
+        // Set defaults
+        $orderby = 'id';
+        $order = 'asc';
+        // If orderby is set, use this as the sort column
+        if(!empty($_GET['orderby']))
+        {
+            $orderby = $_GET['orderby'];
+        }
+        // If order is set use this as the order
+        if(!empty($_GET['order']))
+        {
+            $order = $_GET['order'];
+        }
+        $result = strcmp( $a[$orderby], $b[$orderby] );
+        if($order === 'asc')
+        {
+            return $result;
+        }
+        return -$result;
     }
 }
